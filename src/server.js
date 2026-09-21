@@ -61,6 +61,19 @@ function startInactivityWorker() {
 async function bootstrap() {
   await connectDB();
 
+  // Auto-seed product catalog if database is empty
+  try {
+    const Product = require('./models/Product');
+    const { sampleProducts } = require('../seeds/seedProducts');
+    const count = await Product.countDocuments();
+    if (count === 0) {
+      await Product.insertMany(sampleProducts);
+      console.log(`Auto-seeded ${sampleProducts.length} T-shirt products into MongoDB!`);
+    }
+  } catch (seedErr) {
+    console.warn('Auto-seed check warning:', seedErr.message);
+  }
+
   const server = http.createServer(app);
 
   server.listen(PORT, () => {

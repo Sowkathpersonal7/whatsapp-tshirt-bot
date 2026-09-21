@@ -106,7 +106,14 @@ async function seed() {
   console.log('Database disconnected.');
 }
 
-seed().catch((err) => {
-  console.error('Seeding error:', err);
-  process.exit(1);
-});
+module.exports = {
+  sampleProducts,
+  seed,
+};
+
+if (require.main === module) {
+  seed().catch((err) => {
+    console.error('Seeding error:', err);
+    process.exit(1);
+  });
+}

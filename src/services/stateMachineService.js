@@ -87,7 +87,7 @@ async function processIncomingMessage(from, message) {
       return handleCategorySelection(from, session, interactiveId, text, dict);
 
     case 'AWAITING_PRODUCT':
-      return handleProductSelection(from, session, interactiveId, dict);
+      return handleProductSelection(from, session, interactiveId, text, dict);
 
     case 'AWAITING_SIZE':
       return handleSizeSelection(from, session, interactiveId, text, dict);
@@ -108,7 +108,7 @@ async function processIncomingMessage(from, message) {
       return handleColorChoiceInput(from, session, text, dict);
 
     case 'AWAITING_ORDER_CONFIRMATION':
-      return handleOrderConfirmation(from, session, interactiveId, dict);
+      return handleOrderConfirmation(from, session, interactiveId, text, dict);
 
     case 'AWAITING_CUSTOMER_NAME':
       return handleCustomerNameInput(from, session, text, dict);
@@ -120,7 +120,7 @@ async function processIncomingMessage(from, message) {
       return handleCustomerAddressInput(from, session, text, dict);
 
     case 'AWAITING_PAYMENT_METHOD':
-      return handlePaymentMethodSelection(from, session, customer, interactiveId, dict);
+      return handlePaymentMethodSelection(from, session, customer, interactiveId, text, dict);
 
     default:
       // Fallback reset
@@ -227,7 +227,16 @@ async function handleCategorySelection(to, session, selectedId, text, dict) {
     CAT_LOOSE_FIT: 'LOOSE_FIT',
   };
 
-  const categoryEnum = categoryMap[selectedId];
+  let categoryEnum = categoryMap[selectedId];
+  if (!categoryEnum && text) {
+    const upper = text.toUpperCase().replace(/[^A-Z]/g, '_');
+    if (upper.includes('HALF')) categoryEnum = 'HALF_SLEEVE';
+    else if (upper.includes('FULL')) categoryEnum = 'FULL_SLEEVE';
+    else if (upper.includes('DROP')) categoryEnum = 'DROP_SHOULDER';
+    else if (upper.includes('REGULAR')) categoryEnum = 'REGULAR_FIT';
+    else if (upper.includes('LOOSE')) categoryEnum = 'LOOSE_FIT';
+  }
+
   if (!categoryEnum) {
     await whatsappService.sendTextMessage(to, '⚠️ Please tap the button to select a category from the list.');
     return sendCategoryList(to, dict);
@@ -269,18 +278,23 @@ async function sendProductList(to, categoryEnum, dict) {
   );
 }
 
-async function handleProductSelection(to, session, selectedId, dict) {
-  if (!selectedId.startsWith('PROD_')) {
-    await whatsappService.sendTextMessage(to, '⚠️ Please select a product from the list.');
-    return sendProductList(to, session.cart.category, dict);
+async function handleProductSelection(to, session, selectedId, text, dict) {
+  let product = null;
+
+  if (selectedId && selectedId.startsWith('PROD_')) {
+    const productId = selectedId.replace('PROD_', '');
+    product = await Product.findById(productId);
+  } else if (text) {
+    product = await Product.findOne({
+      category: session.cart.category,
+      isActive: true,
+      name: { $regex: text.trim(), $options: 'i' },
+    });
   }
 
-  const productId = selectedId.replace('PROD_', '');
-  const product = await Product.findById(productId);
-
   if (!product) {
-    await whatsappService.sendTextMessage(to, dict.genericError);
-    return sendCategoryList(to, dict);
+    await whatsappService.sendTextMessage(to, '⚠️ Please select a product from the list.');
+    return sendProductList(to, session.cart.category, dict);
   }
 
   session.cart.productId = product._id;
@@ -566,21 +580,23 @@ async function renderOrderSummary(to, session, dict) {
   );
 }
 
-async function handleOrderConfirmation(to, session, selectedId, dict) {
-  if (selectedId === 'ORDER_CANCEL') {
+async function handleOrderConfirmation(to, session, selectedId, text, dict) {
+  const clean = (text || '').toLowerCase().trim();
+
+  if (selectedId === 'ORDER_CANCEL' || clean === 'cancel' || clean.includes('cancel')) {
     session.state = 'AWAITING_LANGUAGE';
     session.cart = {};
     await session.save();
     return whatsappService.sendTextMessage(to, dict.orderCancelled);
   }
 
-  if (selectedId === 'ORDER_MODIFY') {
+  if (selectedId === 'ORDER_MODIFY' || clean === 'modify' || clean.includes('modify') || clean.includes('edit')) {
     session.state = 'AWAITING_CATEGORY';
     await session.save();
     return sendCategoryList(to, dict);
   }
 
-  if (selectedId === 'ORDER_CONFIRM') {
+  if (selectedId === 'ORDER_CONFIRM' || clean === 'confirm' || clean === 'yes' || clean === 'ok') {
     session.state = 'AWAITING_CUSTOMER_NAME';
     await session.save();
     return whatsappService.sendTextMessage(to, dict.askCustomerName);
@@ -670,7 +686,11 @@ async function handleCustomerAddressInput(to, session, text, dict) {
 // -----------------------------------------------------------------------------
 // STEP 9: PAYMENT METHOD & FINAL ORDER PLACEMENT
 // -----------------------------------------------------------------------------
-async function handlePaymentMethodSelection(to, session, customer, selectedId, dict) {
+async function handlePaymentMethodSelection(to, session, customer, selectedId, text, dict) {
+  const clean = (text || '').toLowerCase().trim();
+  const isCOD = selectedId === 'PAY_COD' || clean === 'cod' || clean.includes('cash');
+  const isOnline = selectedId === 'PAY_ONLINE' || clean === 'online' || clean.includes('pay') || clean.includes('upi');
+
   const orderCode = generateOrderCode();
   const estimatedDelivery = new Date(Date.now() + 4 * 24 * 60 * 60 * 1000); // +4 days
 
@@ -689,7 +709,7 @@ async function handlePaymentMethodSelection(to, session, customer, selectedId, d
     itemSubtotal: session.cart.priceBreakup.subtotal,
   };
 
-  if (selectedId === 'PAY_COD') {
+  if (isCOD) {
     // Save COD Order
     const order = await Order.create({
       orderId: orderCode,
@@ -708,6 +728,14 @@ async function handlePaymentMethodSelection(to, session, customer, selectedId, d
       orderStatus: 'CONFIRMED',
       estimatedDeliveryDate: estimatedDelivery,
     });
+
+    // Decrement inventory stock
+    if (orderItem.productId && orderItem.size) {
+      await Product.updateOne(
+        { _id: orderItem.productId },
+        { $inc: { [`stock.${orderItem.size}`]: -orderItem.quantity } }
+      );
+    }
 
     await Customer.updateOne(
       { _id: customer._id },
@@ -741,7 +769,7 @@ async function handlePaymentMethodSelection(to, session, customer, selectedId, d
     return whatsappService.sendTextMessage(to, confirmation);
   }
 
-  if (selectedId === 'PAY_ONLINE') {
+  if (isOnline) {
     // Create Pending Order
     const order = await Order.create({
       orderId: orderCode,

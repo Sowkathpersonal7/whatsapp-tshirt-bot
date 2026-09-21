@@ -1,0 +1,35 @@
+{
+  "name": "whatsapp-tshirt-ordering-bot",
+  "version": "1.0.0",
+  "description": "Automated WhatsApp chatbot ordering system for T-Shirt retail shop with Node.js, Express, MongoDB, and WhatsApp Business Cloud API",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "seed": "node seeds/seedProducts.js"
+  },
+  "keywords": [
+    "whatsapp-business-api",
+    "chatbot",
+    "nodejs",
+    "express",
+    "mongodb",
+    "razorpay",
+    "ecommerce"
+  ],
+  "author": "EG Retail Shop Tech Team",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.7.9",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "helmet": "^8.0.0",
+    "mongoose": "^8.9.5",
+    "morgan": "^1.10.0",
+    "razorpay": "^2.9.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}

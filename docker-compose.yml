@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: whatsapp_tshirt_bot
+    restart: always
+    ports:
+      - '3000:3000'
+    env_file:
+      - .env
+    environment:
+      - MONGODB_URI=mongodb://mongo:27017/whatsapp_tshirt_store
+    depends_on:
+      - mongo
+
+  mongo:
+    image: mongo:7.0
+    container_name: whatsapp_tshirt_mongodb
+    restart: always
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo_data:/data/db
+
+volumes:
+  mongo_data:

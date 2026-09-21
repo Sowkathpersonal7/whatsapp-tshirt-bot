@@ -53,7 +53,7 @@ module.exports = {
     askCustomerAddress: 'Please provide your complete Delivery Address along with City and 6-digit PIN code:',
     paymentMethodPrompt: 'Please select your preferred payment mode for ₹{amount}:',
     btnCOD: '💵 Cash on Delivery',
-    btnOnline: '⚡ Pay Online (UPI/Card)',
+    btnOnline: '⚡ Pay Online',
     codConfirmed: '🎉 Order Placed Successfully!\n\n' +
       '📋 Order ID: #{orderId}\n' +
       '👕 Item: {productName} ({size}) × {quantity}\n' +
@@ -206,7 +206,7 @@ module.exports = {
     askCustomerAddress: 'कृपया पिन कोड सहित अपना पूरा डिलीवरी पता भेजें:',
     paymentMethodPrompt: '₹{amount} के भुगतान के लिए विधि चुनें:',
     btnCOD: '💵 कैश ऑन डिलीवरी',
-    btnOnline: '⚡ ऑनलाइन पेमेंट (UPI/कार्ड)',
+    btnOnline: '⚡ ऑनलाइन पेमेंट',
     codConfirmed: '🎉 ऑर्डर सफलतापूर्वक दर्ज हुआ!\n\n' +
       '📋 ऑर्डर आईडी: #{orderId}\n' +
       '👕 आइटम: {productName} ({size}) × {quantity}\n' +
